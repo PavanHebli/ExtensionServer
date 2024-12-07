@@ -12,7 +12,6 @@ import anthropic
 import re
 from bs4 import BeautifulSoup
 import asyncio
-import re
 
 def ChromeHeadless(headless = True):
     chrome_options = Options()
