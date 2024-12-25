@@ -75,7 +75,7 @@ def ExtractUrls(urls):
             index+=1
             print(url)
             urlList.append(url)
-            if index == 2:
+            if index == 3:
                 break
     return urlList
 
@@ -92,6 +92,7 @@ async def Summarize(urls, userString):
     # for html, url in zip(html_results, urlList[:5]):
     for html, url in zip(html_results, urlList):
         FullText = GetBodyStrings(html)
+        FullText = f"{FullText}\nbased on the above give me an aswer to {urls.search}"
         # print(url)
         history = count_words_and_stop(FullText, url, history)
 
@@ -184,11 +185,16 @@ def is_model_downloaded(modelName):
     return False
 
 def LLMModels(strings, modelSelect="llama3.2:3b", stream=False):
-    userString1=f"Your are an Expert in summarizing the information, Now based on the information provided give as detailed answer as possible in 1000 words "
-    userString2=f"Also based on the information provided give list of meaningful questions and their asnwers upto 5 to help understand more about the topic for which you have detailed answers "
-    userString3=f"if you think you covered everything it is fine if you do not have any meaningful questions "
-    userString4=f"but if you have any strictly write '@@' on a new line and then after the new line start each question with #Q(number) and answers #A(number) E.g. #Q1,  #A1 , #Q2 and so on "
-    userString5=f"in plain text without HTML format. This will help me to split the text. remember do not start like 'here is your answer in html format' or any kind of introduction before the answer like that."
+    # userString1=f"Your are an Expert in summarizing the information, Now based on the information provided give as detailed answer as possible in 1000 words. Use HTML Tags (H and P tags) for heading and paragraphs to format the "
+    # userString2=f"content. Strictly wrap any code in the  HTML '<pre>' tag. Also based on the information. Provided give list of meaningful questions and their asnwers upto 5 to help understand more "
+    # userString3=f"about the topic for which you have detailed answers if you think you covered everything it is fine if you do not have any meaningful questions but if you have any strictly write '@@' "
+    # userString4=f"on a new line and then after the new line start each question with #Q(number) and answers #A(number) E.g. #Q1,  #A1 , #Q2 and so on. This will help me to split the text. "
+    # userString5=f"remember do not start like 'here is your answer in html format' or any kind of introduction before the answer like that. Remeber the questionairre should be in plain text without HTML format but the answer should be strictly in HTML format."
+    userString1=f"Your are an Expert in summarizing the information, Now based on the information provided give as detailed answer as possible in 500 words. "
+    userString2=f""
+    userString3=f""
+    userString4=f""
+    userString5=f""
     systemCommand=f"{userString1} {userString2} {userString3} {userString4} {userString5}"
     # Check if the model is already downloaded
     if not is_model_downloaded(modelSelect):
