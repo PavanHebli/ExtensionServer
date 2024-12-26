@@ -75,13 +75,14 @@ def ExtractUrls(urls):
             index+=1
             print(url)
             urlList.append(url)
-            if index == 3:
+            if index == 5:
                 break
     return urlList
 
 async def Summarize(urls, userString):
     urlList=ExtractUrls(urls)
     history=""
+    allSummaries=""
     coros=[]
     for index, url in enumerate(urlList):
         coros.append(async_GetHTML(url))
@@ -92,11 +93,12 @@ async def Summarize(urls, userString):
     # for html, url in zip(html_results, urlList[:5]):
     for html, url in zip(html_results, urlList):
         FullText = GetBodyStrings(html)
-        FullText = f"{FullText}\nbased on the above give me an aswer to {urls.search}"
+        # FullText = f"{FullText}\nbased on the above give me an aswer to {urls.search}"
         # print(url)
-        history = count_words_and_stop(FullText, url, history)
+        history = count_words_and_stop(FullText, urls.search, "")
+        allSummaries=f"{allSummaries}\n{history}"
 
-    prompt=f"{history}\n{userString}"
+    prompt=f"{allSummaries}\n{userString}"
     # print("--->",len(history.split()))
     return LLMModels(prompt)
 
@@ -107,7 +109,7 @@ def count_words_and_stop(text, url, history, word_limit=90000):
     sentences = re.split(r'(?<=[.!?]) +', text)
     total_words = 0
     selected_sentences = []
-    userString=f"give me a detailed summary the following within 500 words"
+    userString=f"based on the above give me an as exact aswer as possible to {url} in 500 words"
     includeURL=True
     word_count_history = len(history.split())
     for sentence in sentences:
@@ -153,6 +155,7 @@ def GenerateQuery(prompt: str, data: str, history:str):
     history=LLMModels(completePrompt)
     # history=AnthropicModels(completePrompt)
     history=format_paragraph(history)
+    print(history, "\n")
     return history
 
 def DownloadModel(modelName):
@@ -190,8 +193,8 @@ def LLMModels(strings, modelSelect="llama3.2:3b", stream=False):
     # userString3=f"about the topic for which you have detailed answers if you think you covered everything it is fine if you do not have any meaningful questions but if you have any strictly write '@@' "
     # userString4=f"on a new line and then after the new line start each question with #Q(number) and answers #A(number) E.g. #Q1,  #A1 , #Q2 and so on. This will help me to split the text. "
     # userString5=f"remember do not start like 'here is your answer in html format' or any kind of introduction before the answer like that. Remeber the questionairre should be in plain text without HTML format but the answer should be strictly in HTML format."
-    userString1=f"Your are an Expert in summarizing the information, Now based on the information provided give as detailed answer as possible in 500 words. "
-    userString2=f""
+    userString1=f"Your are an Expert in summarizing the informationbased on the information provided to provide an aswer as accurate as possible in 500 words. "
+    userString2=f"Also based on the information received "
     userString3=f""
     userString4=f""
     userString5=f""

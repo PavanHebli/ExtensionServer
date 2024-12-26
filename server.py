@@ -31,7 +31,7 @@ async def GetSummary(urls: URL):
     # using proper headings with 'H' tags paragrpah with 'P' tags
     # and wrap all the code in HTML'<pre>' tag
     # so that your output can be used as is to make your output easy to read
-    userString1= f"{urls.search} Provide an explainantion to the given query. use HTML H and p tags for headings and paragraphs, your response will be used in an webpage as is "
+    userString1= f"{urls.search} Provide an exact explainantion to the given query. use HTML H and p tags for headings and paragraphs, your response will be used in an webpage as is "
     userString2=f"do not include head or start with DOCTYPE only use HTML tags. strictly use HTML code tag and no script tags to show any script or code in a code block."
     userString3=f""
     # and 'pre' tags for the code snippents to only show the code without rendering output in browser which will make it 
