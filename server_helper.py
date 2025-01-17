@@ -12,6 +12,7 @@ import anthropic
 import re
 from bs4 import BeautifulSoup
 import asyncio
+import time
 
 def ChromeHeadless(headless = True):
     chrome_options = Options()
@@ -20,38 +21,61 @@ def ChromeHeadless(headless = True):
     if headless:
         chrome_options.add_argument("--headless=new") # for Chrome >= 109
         chrome_options.add_argument(f'user-agent={user_agent}')
+        chrome_options.add_argument(f"page_load_strategy=none")
         # chrome_options.add_argument("--headless")
         # chrome_options.headless = True # also works
     return chrome_options
 
+def OpenBrowser(headless=True):
+    driver=webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()), 
+        options=ChromeHeadless(headless),
+        # desired_capabilities=capa
+        )
+    print("Driver loaded!")
+    return driver
 
-# driver=webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=ChromeHeadless())
-# driver.implicitly_wait(10)
-# driver.get(url)
-# html = driver.page_source
-# driver.quit()
-
-def GetHTML(url, headless=True, className='body', explicit=10):
-    driver=webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=ChromeHeadless(headless))
-    driver.implicitly_wait(10)
-    driver.get(url)
-    html=None    
+def GetURLData(driver, name):
     try:
-        # myElem = WebDriverWait(driver, explicit).until(EC.presence_of_element_located((By.CLASS_NAME, className)))
-        if className == 'body':
-            myElem = WebDriverWait(driver, explicit).until(EC.presence_of_element_located((By.TAG_NAME, className)))
-        elif className:
-            myElem = WebDriverWait(driver, explicit).until(EC.presence_of_element_located((By.CLASS_NAME, className)))
-        print ("Page is ready!")
-        html = driver.page_source
-        driver.quit()
-    except TimeoutException:
-        print( "Loading took too much time!")
+        driver.switch_to.window(f"{name}")
+        driver.execute_script("window.stop();")
+        html=driver.page_source
+        print("[INFO] GetURLData: Data Received ")
+        print(name, driver.title)
+        driver.close()
+    except Exception as e:
+        html=""
+        print(f"[ERROR] GetURLData: Exception Occured\n{e} ")
     return html
 
-async def async_GetHTML(url, headless=True, className='body', explicit=10):
-    # Run the synchronous GetHTML in a separate thread
-    return await asyncio.to_thread(GetHTML, url, headless, className, explicit)
+def OpenURL(driver, url, name):
+    driver.execute_script(f"window.open('{url}', '{name}');")
+    pass
+
+def GetHTML(url, driver):
+    pass
+
+
+# def GetHTML(url, driver, className='body', explicit=10):
+#     # driver=webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=ChromeHeadless(headless))
+#     driver.get(url)
+#     html=None    
+#     try:
+#         # myElem = WebDriverWait(driver, explicit).until(EC.presence_of_element_located((By.CLASS_NAME, className)))
+#         if className == 'body':
+#             myElem = WebDriverWait(driver, explicit).until(EC.presence_of_element_located((By.TAG_NAME, className)))
+#         elif className:
+#             myElem = WebDriverWait(driver, explicit).until(EC.presence_of_element_located((By.CLASS_NAME, className)))
+#         print ("Page is ready!")
+#         html = driver.page_source
+#         driver.quit()
+#     except TimeoutException:
+#         print( "Loading took too much time!")
+#     return html
+
+# async def async_GetHTML(url, headless=True, className='body', explicit=10):
+#     # Run the synchronous GetHTML in a separate thread
+#     return await asyncio.to_thread(GetHTML, url, headless, className, explicit)
 
 
 def GetBodyStrings(html):
@@ -59,9 +83,10 @@ def GetBodyStrings(html):
     # Get the whole body tag
     tag = soup.body
     concatString=""
-    # Print each string recursively
-    for string in tag.strings:
-        concatString=concatString + " " +string.strip()
+    if tag:
+        # Print each string recursively
+        for string in tag.strings:
+            concatString=concatString + " " +string.strip()
     return concatString
 
 def ExtractUrls(urls):
@@ -72,57 +97,42 @@ def ExtractUrls(urls):
             index+=1
             print(url)
             urlList.append(url)
-            if index == 3:
+            if index == 5:
                 break
     return urlList
 
-async def Summarize(urls, userString):
+async def Summarize(urls, userString, driver):
     urlList=ExtractUrls(urls)
     history=""
-    coros=[]
+    allSummaries=""
+    driver.implicitly_wait(6) # wait for 5 seconds
+    initial_tab_handle=driver.current_window_handle
     for index, url in enumerate(urlList):
-        coros.append(async_GetHTML(url))
-        # if index == 4:
-        #     break
-        # html=GetHTML(url)
-    html_results = await asyncio.gather(*coros)
-    # for html, url in zip(html_results, urlList[:5]):
-    for html, url in zip(html_results, urlList):
-        FullText = GetBodyStrings(html)
-        # print(url)
-        history = count_words_and_stop(FullText, url, history)
-
-    prompt=f"{history}\n{userString}"
-    # print("--->",len(history.split()))
+        OpenURL(driver, url, f"tab_{index}")
+    for index in range(len(urlList)):
+        html=GetURLData(driver, f"tab_{index}")
+        if html:
+            print(index)
+            FullText = GetBodyStrings(html)
+            history = count_words_and_stop(FullText, urls.search, "")
+            allSummaries=f"{allSummaries}\n{history}"
+    prompt=f"{allSummaries}\n{userString}"
+    driver.switch_to.window(initial_tab_handle)
     return GroqModels(prompt)
 
-
-
-def count_words_and_stop(text, url, history, word_limit=6500):
+def count_words_and_stop(text, url, history, word_limit=90000):
     # Split text into sentences using regular expressions to handle punctuation
     sentences = re.split(r'(?<=[.!?]) +', text)
     total_words = 0
     selected_sentences = []
-    userString=f"give me a detailed summary the following within 500 words"
+    userString=f"based on the above give me an as exact aswer as possible to {url} in 500 words"
     includeURL=True
     word_count_history = len(history.split())
     for sentence in sentences:
         sentence=sentence.strip()
         word_count = len(sentence.split())
-        # print("word count bug ::",len(sentence),len(sentence.split()) )
-        # If adding this sentence exceeds the word limit, stop
         if total_words + word_count + word_count_history > word_limit:
             final_text = ' '.join(selected_sentences)
-            # if includeURL:
-            #     userString=f"give me a summary in 1000 words {url}"
-            #     includeURL=False
-
-            # print(f"{total_words} (total words), {word_count} (word count)\n{len(selected_sentences)} (sentence length)")
-            # temp_final_text = len(final_text.split())
-            # temp_history = len(history.split())
-            
-            # print(f"{temp_final_text} (final text) + = {temp_history} (history) = {temp_final_text+temp_history} total")
-            
             history=GenerateQuery(userString, final_text, history)
             total_words=0
             # word_count=0
@@ -148,13 +158,20 @@ def GenerateQuery(prompt: str, data: str, history:str):
     completePrompt=f"{prompt}: \n{history}\n{data}"
     history=GroqModels(completePrompt)
     # history=AnthropicModels(completePrompt)
+    print("--> GenerateQuery Called")
     history=format_paragraph(history)
     return history
 
 
-def GroqModels(strings, modelSelect="llama-3.1-8b-instant", stream=False):
+def GroqModels(strings, modelSelect="llama-3.1-8b-instant", stream=False): # llama-3.1-8b-instant
     textList=strings.split()
     # print(f"Word Length send to LLaMa Model: {len(textList)}")
+    userString1=f"Your are an Expert in summarizing the informationbased on the information provided to provide an aswer as accurate as possible in 500 words. "
+    userString2=f"Also based on the information received "
+    userString3=f""
+    userString4=f""
+    userString5=f""
+    systemCommand=f"{userString1} {userString2} {userString3} {userString4} {userString5}"
     client = Groq(
         api_key="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"
     )
@@ -162,6 +179,8 @@ def GroqModels(strings, modelSelect="llama-3.1-8b-instant", stream=False):
         model=modelSelect,
         messages=[
             {
+                'role':'system',
+                'content':f'{systemCommand}',
                 "role": "user",
                 "content": f"{strings}"
             }

@@ -21,6 +21,9 @@ class URL(BaseModel):
     search: str
     urlArray: list
 
+driver=sh.OpenBrowser(headless=True)
+print("Driver loaded main")
+
 @app.get("/test/")
 def read_root():
     return {"Hello": "World"}
@@ -38,7 +41,7 @@ async def GetSummary(urls: URL):
     userString=userString1+userString2+userString3
     print("--->",len(userString.split()))
     # summary=sh.Summarize(urls, userString)
-    summary = await sh.Summarize(urls, userString)
+    summary = await sh.Summarize(urls, userString, driver)
     print("#"*50)
     print(summary)
     print(f"\n\n--- {round((time.time() - start_time), 2)} seconds ---")
