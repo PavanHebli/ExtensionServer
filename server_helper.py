@@ -173,7 +173,7 @@ def GroqModels(strings, modelSelect="llama-3.1-8b-instant", stream=False): # lla
     userString5=f""
     systemCommand=f"{userString1} {userString2} {userString3} {userString4} {userString5}"
     client = Groq(
-        api_key="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"
+        api_key=""
     )
     completion = client.chat.completions.create(
         model=modelSelect,
